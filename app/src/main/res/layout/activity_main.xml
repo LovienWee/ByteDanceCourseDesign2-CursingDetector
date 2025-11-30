@@ -4,80 +4,111 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:fitsSystemWindows="true"
+    android:background="@android:color/white">
 
-    <com.google.android.exoplayer2.ui.StyledPlayerView
-        android:id="@+id/player_view"
+    <!-- 顶部标题栏 -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/topAppBar"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@android:color/white"
+        app:title="脏话检测😈"
+        app:titleCentered="true"
+        app:titleTextColor="@android:color/black" />
+
+    <!-- 播放器容器：里面放 PlayerView + 全屏按钮 -->
+    <FrameLayout
+        android:id="@+id/player_container"
+        android:layout_width="match_parent"
+        android:layout_height="230dp">
+
+        <com.google.android.exoplayer2.ui.StyledPlayerView
+            android:id="@+id/player_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#000"
+            app:use_controller="true"
+            app:resize_mode="fit"
+            app:show_buffering="when_playing" />
+
+        <!-- 右下角全屏按钮 -->
+        <Button
+            android:id="@+id/btn_fullscreen"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_gravity="end|bottom"
+            android:layout_margin="8dp"
+            android:background="@android:color/transparent"
+            android:padding="4dp"
+            android:text="⛶"
+            android:textSize="18sp"
+            android:textColor="@android:color/white" />
+    </FrameLayout>
+
+    <!-- 可滚动内容区 -->
+    <ScrollView
+        android:id="@+id/scroll_content"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="#000"
-        app:use_controller="true" />
+        android:fillViewport="true">
 
-    <TextView
-        android:id="@+id/tv_engine_label"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="选择语音识别引擎："
-        android:textSize="14sp"
-        android:paddingTop="8dp"
-        android:paddingBottom="4dp" />
-
-    <RadioGroup
-        android:id="@+id/rg_engine"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <RadioButton
-            android:id="@+id/rb_engine_baidu"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="百度"
-            android:checked="true" />
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <RadioButton
-            android:id="@+id/rb_engine_openai"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="OpenAI" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="选择语音识别引擎："
+                android:textColor="#000"
+                android:textSize="14sp" />
 
-        <RadioButton
-            android:id="@+id/rb_engine_fake"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="本地示例" />
-    </RadioGroup>
+            <Spinner
+                android:id="@+id/sp_engine"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
-    <TextView
-        android:id="@+id/tv_status"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="未开始播放"
-        android:textSize="16sp"
-        android:paddingTop="8dp" />
+            <TextView
+                android:id="@+id/tv_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="请选择视频开始检测"
+                android:textColor="#000"
+                android:textSize="14sp" />
 
-    <TextView
-        android:id="@+id/tv_stats"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="脏话统计：-"
-        android:textSize="14sp"
-        android:paddingTop="4dp" />
+            <TextView
+                android:id="@+id/tv_stats"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="脏话统计：-"
+                android:textColor="#000"
+                android:textSize="14sp" />
 
-    <!-- 新增：命中列表 -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_hits"
-        android:layout_width="match_parent"
-        android:layout_height="120dp"
-        android:layout_marginTop="8dp" />
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_hits"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:overScrollMode="never"/>
 
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- ⭐ 固定在底部的按钮 -->
     <Button
         android:id="@+id/btn_choose_video"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:backgroundTint="@color/button_text_dark"
-        android:text="开始检测" />
+        android:layout_height="56dp"
+        android:layout_margin="16dp"
+        android:text="开始检测"
+        android:textSize="18sp"
+        android:textColor="@android:color/white"
+        android:backgroundTint="#000000" />
 
 </LinearLayout>

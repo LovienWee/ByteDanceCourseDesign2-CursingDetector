@@ -41,6 +41,16 @@ public class ProfanityDetector {
         rules.add(new Rule("son of a bitch", "\\bson of a bitch\\b"));
         rules.add(new Rule("motherfucker", "\\bmotherfuck(er|ers|ing)?\\b"));
         rules.add(new Rule("piece of shit", "\\bpiece of shit\\b"));
+
+        // ==== 中文常见脏话 ====
+        // 这里用短语，尽量避免单个「操」这种容易误伤普通词
+        rules.add(new Rule("卧槽", "卧槽|我[艹操靠槽]|wo cao"));
+        rules.add(new Rule("操你妈", "操你妈|草泥马"));
+        rules.add(new Rule("妈的", "妈的|他妈的|你妈的"));
+        rules.add(new Rule("傻逼", "傻逼|傻B|沙币|煞笔"));
+        rules.add(new Rule("垃圾", "垃圾(队友)?"));        // 游戏里常见
+        rules.add(new Rule("滚", "滚你妈|给我滚|滚犊子"));        // 只匹配比较重的说法
+        rules.add(new Rule("臭", "臭\\s*傻逼|臭\\s*婊子"));
     }
 
     /**

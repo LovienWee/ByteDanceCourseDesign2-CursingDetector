@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="engine_names">
+        <item>百度英文模型</item>
+        <item>百度中文模型</item>
+        <item>OpenAI（预留，暂时无法访问）</item>
+        <item>本地模拟</item>
+    </string-array>
+</resources>

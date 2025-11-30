@@ -13,8 +13,15 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.RadioGroup;
+import android.widget.ScrollView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -31,6 +38,7 @@ import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.MediaItem;
 import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.ui.StyledPlayerView;
+import com.google.android.material.appbar.MaterialToolbar;
 
 import java.util.List;
 
@@ -56,14 +64,23 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView rvHits;
     private ProfanityHitAdapter hitAdapter;
 
+    private MaterialToolbar topAppBar;
+    private ScrollView scrollContent;
+    private ViewGroup playerContainer;
+    private View btnFullscreen;
+    private boolean isFullscreen = false;
+
+
     // ==== 新增：引擎类型枚举 + 当前选择 ====
     private enum EngineType {
-        BAIDU,
+        BAIDU_EN,   // 百度英文模型
+        BAIDU_ZH,   // 百度中文模型
         OPENAI,
         FAKE
     }
 
-    private EngineType currentEngineType = EngineType.BAIDU;
+    private EngineType currentEngineType = EngineType.BAIDU_EN;
+
     // =====================================
 
     @Override
@@ -80,20 +97,52 @@ public class MainActivity extends AppCompatActivity {
         exoPlayer = new ExoPlayer.Builder(this).build();
         playerView.setPlayer(exoPlayer);
 
+        topAppBar = findViewById(R.id.topAppBar);
+        scrollContent = findViewById(R.id.scroll_content);
+        playerContainer = findViewById(R.id.player_container);
+        btnFullscreen = findViewById(R.id.btn_fullscreen);
+
+        btnFullscreen.setOnClickListener(v -> toggleFullscreen());
+
+
         // ==== 新增：引擎选择 RadioGroup ====
-        RadioGroup rgEngine = findViewById(R.id.rg_engine);
-        rgEngine.setOnCheckedChangeListener((group, checkedId) -> {
-            if (checkedId == R.id.rb_engine_baidu) {
-                currentEngineType = EngineType.BAIDU;
-                tvStatus.setText("当前引擎：百度语音识别");
-            } else if (checkedId == R.id.rb_engine_openai) {
-                currentEngineType = EngineType.OPENAI;
-                tvStatus.setText("当前引擎：OpenAI（可能受网络限制）");
-            } else if (checkedId == R.id.rb_engine_fake) {
-                currentEngineType = EngineType.FAKE;
-                tvStatus.setText("当前引擎：本地模拟结果");
+        Spinner spEngine = findViewById(R.id.sp_engine);
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
+                this,
+                R.array.engine_names,
+                android.R.layout.simple_spinner_item
+        );
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spEngine.setAdapter(adapter);
+
+        spEngine.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                switch (position) {
+                    case 0:
+                        currentEngineType = EngineType.BAIDU_EN;
+                        tvStatus.setText("当前引擎：百度英文模型");
+                        break;
+                    case 1:
+                        currentEngineType = EngineType.BAIDU_ZH;
+                        tvStatus.setText("当前引擎：百度中文模型");
+                        break;
+                    case 2:
+                        currentEngineType = EngineType.OPENAI;
+                        tvStatus.setText("当前引擎：OpenAI（可能受网络限制）");
+                        break;
+                    case 3:
+                    default:
+                        currentEngineType = EngineType.FAKE;
+                        tvStatus.setText("当前引擎：本地模拟结果");
+                        break;
+                }
             }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) { }
         });
+
         // =================================
 
         // 播放结束监听
@@ -306,18 +355,24 @@ public class MainActivity extends AppCompatActivity {
 
     // ==== 根据当前选项创建对应 STT 引擎 ====
     private SpeechToTextEngine createEngine() {
+        // 你自己那两个 key
+        String baiduApiKey = "62uccZJaWVsnYUirjqLXqvFp";
+        String baiduSecretKey = "PWXakUA8FuUaegj7HEYGv3NXCjm5YnUR";
+
         switch (currentEngineType) {
-            case BAIDU: {
-                // 百度 Key
-                String baiduApiKey = "62uccZJaWVsnYUirjqLXqvFp";
-                String baiduSecretKey = "PWXakUA8FuUaegj7HEYGv3NXCjm5YnUR";
-                return new BaiduSpeechToTextEngine(baiduApiKey, baiduSecretKey);
-            }
-            case OPENAI: {
-                // OpenAI Key
-                String openaiApiKey = "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";
+            case BAIDU_EN:
+                // 英文模型 dev_pid = 1737
+                return new BaiduSpeechToTextEngine(baiduApiKey, baiduSecretKey, 1737);
+
+            case BAIDU_ZH:
+                // 中文普通话模型 dev_pid = 1537
+                return new BaiduSpeechToTextEngine(baiduApiKey, baiduSecretKey, 1537);
+
+            case OPENAI:
+                // 暂时还连不上，可以先返回 Fake 做占位
+                String openaiApiKey = "YOUR_OPENAI_API_KEY";
                 return new CloudSpeechToTextEngine(openaiApiKey);
-            }
+
             case FAKE:
             default:
                 return new FakeSpeechToTextEngine();
@@ -327,8 +382,10 @@ public class MainActivity extends AppCompatActivity {
     // ==== 小工具：给用户看的引擎名称 ====
     private String getEngineName(EngineType type) {
         switch (type) {
-            case BAIDU:
-                return "百度语音";
+            case BAIDU_EN:
+                return "百度英文模型";
+            case BAIDU_ZH:
+                return "百度中文模型";
             case OPENAI:
                 return "OpenAI";
             case FAKE:
@@ -336,4 +393,56 @@ public class MainActivity extends AppCompatActivity {
                 return "本地示例";
         }
     }
+
+    private void toggleFullscreen() {
+        if (!isFullscreen) {
+            // 进入全屏
+            isFullscreen = true;
+
+            // 隐藏顶部栏和下方内容
+            if (topAppBar != null) topAppBar.setVisibility(View.GONE);
+            if (scrollContent != null) scrollContent.setVisibility(View.GONE);
+
+            // 扩大播放器高度：占满剩余空间
+            LinearLayout.LayoutParams params =
+                    (LinearLayout.LayoutParams) playerContainer.getLayoutParams();
+            params.height = 0;
+            params.weight = 1f;
+            playerContainer.setLayoutParams(params);
+
+            // 隐藏系统状态栏和导航栏（沉浸式）
+            View decorView = getWindow().getDecorView();
+            decorView.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            );
+        } else {
+            // 退出全屏
+            isFullscreen = false;
+
+            if (topAppBar != null) topAppBar.setVisibility(View.VISIBLE);
+            if (scrollContent != null) scrollContent.setVisibility(View.VISIBLE);
+
+            // 恢复播放器高度为 230dp
+            LinearLayout.LayoutParams params =
+                    (LinearLayout.LayoutParams) playerContainer.getLayoutParams();
+            params.height = dpToPx(230);
+            params.weight = 0f;
+            playerContainer.setLayoutParams(params);
+
+            // 恢复系统栏
+            View decorView = getWindow().getDecorView();
+            decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+        }
+    }
+
+    private int dpToPx(int dp) {
+        float density = getResources().getDisplayMetrics().density;
+        return (int) (dp * density + 0.5f);
+    }
+
 }

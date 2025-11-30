@@ -29,11 +29,18 @@ public class BaiduSpeechToTextEngine implements SpeechToTextEngine {
 
     private final BaiduAuth auth;
     private final OkHttpClient client = new OkHttpClient();
+    private final int devPid;
 
     private volatile boolean cancelled = false;
 
     public BaiduSpeechToTextEngine(String apiKey, String secretKey) {
         this.auth = new BaiduAuth(apiKey, secretKey);
+        this.devPid=1737;
+    }
+
+    public BaiduSpeechToTextEngine(String apiKey, String secretKey, int devPid) {
+        this.auth = new BaiduAuth(apiKey, secretKey);
+        this.devPid = devPid;
     }
 
     @Override
@@ -64,7 +71,7 @@ public class BaiduSpeechToTextEngine implements SpeechToTextEngine {
                 JSONObject req = new JSONObject();
                 req.put("format", "wav");      // 音频格式
                 req.put("rate", 16000);        // 采样率
-                req.put("dev_pid", 1737);      // 英语模型
+                req.put("dev_pid", devPid);      // 英语模型
                 req.put("channel", 1);
                 req.put("token", token);
                 req.put("cuid", "android-demo");
