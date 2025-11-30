@@ -11,198 +11,124 @@
 
 ## ✨ 功能特性（Features）
 
-### 1. 本地视频导入与播放（ExoPlayer）
+### 1. 本地视频播放（ExoPlayer）
 
-* 使用系统文件选择器从本地选择一个视频文件（mp4 等）。
-* 使用 **ExoPlayer + StyledPlayerView** 播放视频。
+* 选择任意本地 mp4 视频进行分析；
 * 支持：
 
-  * 播放 / 暂停
-  * 进度拖动
-  * 全屏 / 退出全屏（通过自定义按钮切换 `playerContainer` 布局高度）
-* 横竖屏切换通过 Manifest 的 `configChanges` 接管，避免播放器被重建。
+  * 暂停/播放
+  * 进度条调节
+  * 缓冲提示
+  * 竖屏观看自适应
+  * **沉浸式全屏播放（单 Activity 实现）**
 
 ---
 
-### 2. 多引擎语音转文字（SpeechToTextEngine 抽象）
+### 2. 多语音识别模型支持（STT Engine Switcher）
 
-项目中封装了一个统一接口：
+通过统一的 `SpeechToTextEngine` 接口，支持多引擎：
 
-```java
-public interface SpeechToTextEngine {
-    void start(Context context, Uri videoUri, ResultCallback callback);
-    void stop();
-}
-```
+| 引擎类型              | 支持语言  | 特点           |
+| ----------------- | ----- | ------------ |
+| **Baidu English** | 英文    | 识别准确、稳定、延迟低  |
+| **Baidu Chinese** | 中文普通话 | 中文识别优秀       |
+| **OpenAI WhistleAPI**   | 任意    | 功能最强，但由于网络通信+接口付费在此仅作接口预留 |
+| **Fake Engine**   | --    | 模拟生成结果用于调试 |
 
-并提供了多种实现：
-
-* `FakeSpeechToTextEngine`
-
-  * **纯本地模拟**，不请求网络。
-  * 固定在几个时间点“假装”识别出几句台词，其中有脏话也有正常句子。
-  * 非常适合在没有配置任何 Key 的情况下，完整跑通整条流程。
-
-* `BaiduSpeechToTextEngine`
-
-  * 使用 **Baidu 语音识别 REST API**。
-  * 通过 `AudioExtractor` 提取音频、解码成 PCM，再用 `WavHeaderPatcher` 补写 WAV 头，符合百度接口要求。
-  * 利用 `BaiduAuth` 获取 `access_token`。
-  * 支持 **两种模型**（通过 `devPid` 控制）：
-
-    * 英文模型（示例中使用 `1737`）
-    * 中文普通话模型（示例中使用 `1537`）
-
-* `CloudSpeechToTextEngine`
-
-  * 为指向 **OpenAI Whisper** 风格的接口。
-  * 通过 `OkHttp` 构造 multipart/form-data 上传音频文件，解析返回 JSON。
-  * 在当前版本中，代码已经写好，但受限于网络通信以及需要付费调用，可以通过配置openai api key进行调用。
-
-在 `MainActivity` 中，通过一个内部枚举来统一管理当前选择的引擎：
-
-```java
-private enum EngineType {
-    BAIDU_EN,   // 百度英文模型
-    BAIDU_ZH,   // 百度中文模型
-    OPENAI,     // OpenAI引擎（预留）
-    FAKE        // 本地模拟
-}
-```
-
-顶部有一个 `Spinner`（使用 `R.array.engine_names`），用于切换当前引擎，并在状态栏展示：
-
-* 当前引擎：百度英文模型
-* 当前引擎：百度中文模型
-* 当前引擎：OpenAI（可能受网络限制）
-* 当前引擎：本地模拟结果
-
-真正开始检测时，会调用 `createEngine()` 按当前选项 new 对应的引擎实例。
+UI 允许用户在检测前自由切换识别引擎。
 
 ---
 
-### 3. 英文脏话检测（ProfanityDetector）
+### 3. 视频音频抽取与转换（AudioExtractor）
 
-语音转文字得到的是一组 `TranscriptSegment`：
+* 使用 `MediaExtractor + MediaCodec` 抽取 AAC 等音频；
+* 实时转码为：
 
-```java
-public class TranscriptSegment {
-    public double startSec;
-    public double endSec;
-    public String text;
-}
-```
+  * **16kHz**
+  * **Mono**
+  * **16bit PCM**
+* 生成标准 **wav** 文件（44字节头部自动回填）
 
-项目内实现了一个 **规则驱动、基于正则表达式的英文脏话检测器**：
-
-```java
-public class ProfanityDetector {
-    // Rule 中包含基础词 + Pattern
-    // 例如：fuck / fucking / fuckin / shit / shitty / asshole / damn / bitch...
-}
-```
-
-特点：
-
-* 按 **完整单词** 匹配，避免把 `hello` 误识别成 `hell`。
-* 处理常见派生词，如：
-
-  * `fuck`, `fucking`, `fuckin`
-  * `shit`, `shitty`
-  * `ass`, `asshole`, `assholes`
-  * `bitch`, `bitches`
-* 每次识别到一条台词，会对整句文本跑一遍规则，输出若干 `ProfanityHit`：
-
-```java
-public class ProfanityHit {
-    public String word;       // 命中的脏话基础词
-    public double startSec;   // 片段起始时间
-    public double endSec;     // 片段结束时间
-    public String lineText;   // 整句原文
-}
-```
+保证所有 STT 引擎都能正常处理音频。
 
 ---
 
-### 4. 脏话统计与列表展示（ProfanityStats + RecyclerView）
+### 4. 脏话检测（Profanity Detector）
 
-* 所有命中的 `ProfanityHit` 会被汇总到 `ProfanityStats` 中：
+采用“正则规则 + 词形处理 + 中文适配”的双语脏话库：
 
-  * `totalCount`：总脏话次数
-  * `perWordCount`：每种基础词的次数统计
-  * `hits`：所有命中列表（用于 UI 展示）
+#### 英文支持
 
-* UI 侧使用了一个 `RecyclerView` 列表，适配器为 `ProfanityHitAdapter`：
+* fuck / fucking / fuckin
+* shit / shitty
+* hell
+* damn
+* bastard
+* bitch(es)
+* asshole(s)
+* motherfucker …
 
-  * 每一行展示：
+#### 中文支持
 
-    * 脏话关键词 + 时间区间（例如 `fuck  00:20.5 - 00:21.5`）
-    * 对应的整句台词文本。
-  * 点击任意一行会触发回调：
+* 卧槽 / 我艹
+* 傻逼 / 傻B / 沙币
+* 操你妈 / 草泥马
+* 垃圾(队友)
+* 妈的 / 他妈的
+* 滚你妈
+* 臭傻逼 …
 
-    * 跳转播放器进度到该片段起点附近。
-    * 同时配合静音逻辑（见下一条）。
-
-* 顶部状态区域会显示当前统计信息，如：
-
-  * 是否已检测完成
-  * 当前累计的脏话次数
-  * 使用的是哪个引擎。
-
----
-
-### 5. 点击列表一键静音脏话片段
-
-项目预留了一个简单但非常好玩的功能：
-
-> 点击某一条脏话记录 → 播放器跳过去播放 → **在该时间段自动静音**，播放完后自动恢复音量。
-
-核心逻辑：
-
-* 在点击某个 `ProfanityHit` 后，调用：
-
-```java
-private void muteForSegment(double startSec, double endSec) {
-    exoPlayer.setVolume(0f);
-    currentMuteEndSec = (exoPlayer.getCurrentPosition() / 1000.0) + duration;
-    startVolumeMonitor();
-}
-```
-
-* `startVolumeMonitor()` 会每 200ms 检查当前播放进度，当超过 `currentMuteEndSec` 时，把音量恢复为 1f，并重置状态。
+确保不误报（如 hello → hell）、不漏报（如 fucking → fuck）。
 
 ---
 
-### 6. 结束时的统计弹窗
+### 5. 命中明细 + 自动静音
 
-* 检测流程结束后，可以通过 `ProfanityStats.buildSummary()` 生成一段统计文案，包括：
+* 页面展示每次脏话命中的：
 
-  * 总脏话次数
-  * 每个词被说了几次
-* UI 里使用 `AlertDialog` 弹出“本局脏话统计”对话框，作为一局视频检测的总结。
+  * 脏话种类
+  * 起止时间
+  * 原始文本
+* 点击某条命中 → 自动跳转到视频对应时间段；
+* （可扩展支持）自动静音该段时间。
+
+---
+
+### 6. UI / UX 完整体验
+
+* 固定底部“开始检测”按钮，重要操作不会被挤下去；
+* 下半部分采用 `ScrollView`，不会压缩播放器；
+* Toolbar 标题居中；
+* 全屏按钮动态伸缩播放器区域；
+* 多语言识别提示 + 状态显示。
 
 ---
 
 ## 🏛 架构设计（Architecture）
 
-整体上是一个 **单 Activity + 多工具类** 的轻量结构，核心是把几个关键职责解耦：
+本项目采用 **自定义接口抽象 + 工具类模块化** 的轻量工程结构：
 
 ```
 UI 层（MainActivity）
-    ├─ 播放器控制（ExoPlayer + StyledPlayerView）
-    ├─ 引擎选择（Spinner + EngineType）
-    ├─ 结果展示（RecyclerView + TextView）
-    └─ 静音控制 + 对话框
+    ↓ 调用
+SpeechToTextEngine（可插拔接口）
+    ↓ 实现
+ - BaiduSpeechToTextEngine（英文）
+ - BaiduSpeechToTextEngine（中文）
+ - FakeSpeechToTextEngine
+（未来可加：XunfeiSpeechToTextEngine / AliyunEngine）
 
-业务逻辑
-    ├─ SpeechToTextEngine 接口  → 多种 STT 实现（Fake / Baidu / Cloud）
-    ├─ ProfanityDetector       → 对 TranscriptSegment 做脏话规则判定
-    └─ ProfanityStats          → 统计汇总 & 生成摘要文案
+    ↓ 调用
+AudioExtractor（统一音频处理）
+    ↓ 输出 wav
+Baidu / Future STT Engine
 
-工具层
-    ├─ AudioExtractor          → 从视频中提取音频为 PCM
-    └─ WavHeaderPatcher        → 补写 WAV 头以符合 Baidu 要求
+    ↓ 返回文本（含时间戳/无时间戳）
+ProfanityDetector → 正则匹配
+ProfanityStats → 数据汇总
+RecyclerView（明细展示）
 ```
+
 
 ---
 
@@ -255,56 +181,35 @@ app/src/main/res
 
 ## 🔧 技术栈（Tech Stack）
 
-| 技术 / 库                                     | 用途                        |
-| ------------------------------------------ | ------------------------- |
-| Java + Android View                        | UI 开发                     |
-| ExoPlayer (`com.google.android.exoplayer`) | 视频播放（本地文件）                |
-| Material Components (`MaterialToolbar` 等)  | 顶部 AppBar、按钮等             |
-| RecyclerView                               | 脏话命中列表展示                  |
-| OkHttp (`com.squareup.okhttp3:okhttp`)     | 调用 Baidu / OpenAI HTTP 接口 |
-| MediaExtractor + MediaCodec                | 提取与解码视频音轨                 |
-
+| 技术                          | 用途           |
+| --------------------------- | ------------ |
+| Java + Android View         | 主 UI 开发      |
+| ExoPlayer                   | 播放本地视频       |
+| MediaExtractor + MediaCodec | 抽取音频并解码为 PCM |
+| OkHttp                      | 调用百度语音 API   |
+| 正则表达式 (Regex)               | 脏话检测         |
+| RecyclerView                | 脏话命中列表       |
+| Spinner                     | 模型选择下拉框      |
+| ScrollView                  | 防挤压布局        |
+| MaterialToolbar             | 顶部导航栏        |
+| 自定义全屏逻辑                     | 沉浸式视频播放      |
 ---
 
 ## 🚀 运行方式（How to Run）
 
-1. **克隆或解压项目**
+1. 克隆项目
+2. Android Studio 打开项目
+3. 连接模拟器/真机
+4. 点击 **Run（▶）**
+5. 选择任意本地 mp4 视频 → 选择模型 → 点击「开始检测」
 
-   * 从 GitHub 或本地 zip 打开 `CursingDetector` 根目录。
+你将看到：
 
-2. **使用 Android Studio 打开项目**
-
-   * 等待 Gradle 同步完成。
-
-3. **配置语音识别 Key**
-
-   * 打开 `MainActivity.java` 中的 `createEngine()` 方法。
-   * 将示例中的 `baiduApiKey` / `baiduSecretKey` 替换成你自己的 Baidu 语音识别 Key（项目中的Key已注销）
-   * 如果要尝试 OpenAI API，在 `CloudSpeechToTextEngine` 中配置自己的 API Key（目前代码中已经预留）。
-
-4. **选择默认引擎的推荐顺序**
-
-   * 想先验证整体流程：选择 **“本地模拟”**（Fake 引擎），不需要任何网络或 Key。
-   * 想看真机识别效果：选择 **百度英文 / 中文模型**，确保网络畅通并填好 Key。
-
-5. **运行应用**
-
-   * 连接模拟器或真机。
-   * 点击 Run（▶）。
-
-6. **体验流程**
-
-   * 点击 “选择本地视频” 按钮，选一个带语音的视频。
-   * 选择引擎 → 点击“开始检测”（或项目中对应按钮）。
-   * 等待识别 + 检测过程：
-
-     * 上方播放器正常播放视频。
-     * 下方列表陆续出现“脏话记录”。
-   * 点击任意一条记录：
-
-     * 播放器跳到对应时间。
-     * 该时间段自动静音，播放完成后恢复音量。
-   * 检测结束后点击按钮或等待触发“统计弹窗”，查看本局脏话汇总。
+* 视频播放
+* STT 实时识别文本
+* 自动检测脏话
+* 统计数和命中列表
+* 点击命中跳转视频对应位置
 
 ---
 
@@ -316,41 +221,64 @@ app/src/main/res
 
 ## 🐛 关键问题与解决（Debug Notes）
 
-1. **音频提取与 Baidu 接口格式不匹配**
+### 1. 视频黑屏
 
-* 问题现象：
-  Baidu 语音识别接口返回报错，提示音频格式不正确或长度异常。
-* 问题原因：
-  直接把 MediaExtractor 解出的 PCM 数据当成 WAV 传给接口，缺失正确的 WAV 头信息。
-* 解决方案：
-  使用 `WavHeaderPatcher` 手动写入标准 WAV 头（PCM 16bit, mono, 16kHz），再上传。
+→ HEVC 解码不支持 + PlayerView 配置问题
 
-2. **本地视频没有音轨 / 非音频轨道**
+**解决：使用 SurfaceView 渲染 + resize_mode="fit"**
 
-* 问题现象：
-  `AudioExtractor` 遍历 track 时找不到 `audio/` 开头的 MIME，抛出异常。
-* 解决方案：
-  在 `AudioExtractor` 中检查是否找到音频轨道，否则抛出清晰的错误；UI 层进行捕获并提示用户换一个视频。
+### 2. OpenAI STT 全部失败
 
-3. **网络调用异常导致 UI 卡死**
+→ 模拟器流量无法走 VPN，被墙
 
-* 问题现象：
-  如果在主线程尝试做网络 I/O，会导致界面卡死甚至 ANR。
-* 解决方案：
-  无论是 Baidu 还是 Cloud 引擎，`start()` 内部均使用 **新线程** 执行网络逻辑，通过回调接口把结果抛回主线程。
+**解决：换百度短语音作为主要模型**
+
+### 3. 百度返回 3310（音频太长）
+
+→ 抽取后 PCM 体积过大
+
+**解决：统一重采样为 16kHz Mono PCM**
+
+### 4. RecyclerView 内容撑开布局
+
+→ 内容过多挤压播放器
+
+**解决：下半部分放入 ScrollView**
+
+### 5. Toolbar 太高 / 标题不居中
+
+→ Material 默认值太大
+
+**解决：height 调为 48dp + titleCentered=true**
+
+### 6. 全屏按钮不能显示
+
+→ 使用了系统私有图标
+
+**解决：改为“⛶”字符按钮，全屏逻辑完全自定义**
+
+### 7. 脏话误报（hello → hell）
+
+→ substring 逻辑太粗糙
+
+**解决：使用正则 + 单词边界**
+
+### 8. 中文脏话库缺失
+
+→ 百度中文模型返回中文后检测不到
+
+**解决：加入中文脏词规则**
 
 ---
 
 ## 🧭 后续扩展方向（Future Work）
 
-* 支持 **完整的 OpenAI Whisper / 其他云厂商 STT**，并通过 UI 动态配置 API Key。
-* 扩展 **中文脏话规则库**，实现中英双语综合检测。
-* 增加：
-
-  * “只静音脏话一小段”的更精细时间控制
-  * 自动给视频生成“脏话时间轴标记”
-  * 导出检测报告（JSON / TXT）
-* 将当前规则式检测替换为 **本地小模型 / 远程大模型分类 API**，做更复杂的内容安全分析。
+* 接入讯飞 / 阿里云真实 STT（已预留接口）
+* 换成 OpenAI Whisper 本地（on-device）推理（如使用 GGML）
+* 导出视频 + 自动打码/静音功能
+* 添加敏感词自定义编辑
+* 自动字幕生成与叠加
+* 小窗视频 / 悬浮播放
 
 ---
 ## 📄 License
