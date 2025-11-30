@@ -276,11 +276,11 @@ app/src/main/res
 
    * 等待 Gradle 同步完成。
 
-3. **（可选）配置语音识别 Key**
+3. **配置语音识别 Key**
 
    * 打开 `MainActivity.java` 中的 `createEngine()` 方法。
-   * 将示例中的 `baiduApiKey` / `baiduSecretKey` 替换成你自己的 Baidu 语音识别 Key。
-   * 如果要尝试云端 STT（OpenAI），在 `CloudSpeechToTextEngine` 中配置自己的 API Key（目前代码中是预留）。
+   * 将示例中的 `baiduApiKey` / `baiduSecretKey` 替换成你自己的 Baidu 语音识别 Key（项目中的Key已注销）
+   * 如果要尝试 OpenAI API，在 `CloudSpeechToTextEngine` 中配置自己的 API Key（目前代码中已经预留）。
 
 4. **选择默认引擎的推荐顺序**
 
@@ -308,9 +308,13 @@ app/src/main/res
 
 ---
 
-## 🐛 关键问题与解决（Debug Notes）
+## 📷 截图展示（Screenshots）
 
-> 这里写的是 **当前实现中实际存在的技术点**，而不是瞎编的新特性。
+![alt text](image.png)
+
+---
+
+## 🐛 关键问题与解决（Debug Notes）
 
 1. **音频提取与 Baidu 接口格式不匹配**
 
@@ -321,16 +325,12 @@ app/src/main/res
 * 解决方案：
   使用 `WavHeaderPatcher` 手动写入标准 WAV 头（PCM 16bit, mono, 16kHz），再上传。
 
----
-
 2. **本地视频没有音轨 / 非音频轨道**
 
 * 问题现象：
   `AudioExtractor` 遍历 track 时找不到 `audio/` 开头的 MIME，抛出异常。
 * 解决方案：
   在 `AudioExtractor` 中检查是否找到音频轨道，否则抛出清晰的错误；UI 层进行捕获并提示用户换一个视频。
-
----
 
 3. **网络调用异常导致 UI 卡死**
 
@@ -341,14 +341,7 @@ app/src/main/res
 
 ---
 
-4. **静音逻辑与播放器进度同步问题**
 
-* 问题现象：
-  如果用户在静音期间狂拖进度条，有可能静音恢复时间与实际播放位置不一致。
-* 解决方案：
-  使用 `playerView.postDelayed` + 定期检查当前 `currentPosition`，一旦时间超出 `currentMuteEndSec` 即恢复音量，并清理状态。
-
----
 
 ## 🧭 后续扩展方向（Future Work）
 
@@ -362,10 +355,12 @@ app/src/main/res
 * 将当前规则式检测替换为 **本地小模型 / 远程大模型分类 API**，做更复杂的内容安全分析。
 
 ---
+## 📄 License
 
-如果你愿意，接下来我还可以帮你：
+Copyright © 2025 LovienWee.
 
-* 基于这份 README，再写一份 **作业二的 3–5 分钟演示讲稿**（像你作业一那种三段式口播）。
-* 或者帮你从这个项目里提炼出“亮点 + 难点”作为答辩稿。
+本项目采用 **GPL v3** 开源协议。
 
-你可以直接说：「帮我写作业二的演示讲稿」或者「帮我整理这个项目的难点」，我就直接开写，不再乱猜 🫡
+这意味着你可以自由使用、修改和分发本软件，但任何基于本项目的衍生作品也必须以相同的开源方式发布。
+
+详见 [LICENSE](LICENSE) 文件。
