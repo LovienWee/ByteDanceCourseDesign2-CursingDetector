@@ -15,6 +15,41 @@
         app:use_controller="true" />
 
     <TextView
+        android:id="@+id/tv_engine_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="选择语音识别引擎："
+        android:textSize="14sp"
+        android:paddingTop="8dp"
+        android:paddingBottom="4dp" />
+
+    <RadioGroup
+        android:id="@+id/rg_engine"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <RadioButton
+            android:id="@+id/rb_engine_baidu"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="百度"
+            android:checked="true" />
+
+        <RadioButton
+            android:id="@+id/rb_engine_openai"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="OpenAI" />
+
+        <RadioButton
+            android:id="@+id/rb_engine_fake"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="本地示例" />
+    </RadioGroup>
+
+    <TextView
         android:id="@+id/tv_status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -41,7 +76,8 @@
         android:id="@+id/btn_choose_video"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="选择本地视频并开始检测"
-        android:layout_marginTop="12dp" />
+        android:layout_marginTop="12dp"
+        android:backgroundTint="@color/button_text_dark"
+        android:text="开始检测" />
 
 </LinearLayout>
